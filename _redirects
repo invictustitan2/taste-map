@@ -1,0 +1,55 @@
+# Cloudflare Pages Redirects and Proxies
+# Documentation: https://developers.cloudflare.com/pages/platform/redirects/
+#
+# Format: from to [status]
+# Status codes: 301 (permanent), 302 (temporary), 200 (proxy/rewrite)
+
+# =============================================================================
+# API Proxy - Forward API requests to backend Worker
+# =============================================================================
+# Proxy all /api/* requests to the Cloudflare Worker at movies.aperion.cc
+# Status 200 means "proxy" (rewrite URL without redirecting the browser)
+# This avoids CORS issues and keeps the API URL consistent
+/api/*  https://movies.aperion.cc/api/:splat  200
+
+# Alternative proxy endpoints (if needed for different environments):
+# /api/dev/*  https://tastemap-api-dev.workers.dev/api/:splat  200
+# /api/staging/*  https://tastemap-api-staging.workers.dev/api/:splat  200
+
+# =============================================================================
+# Health Check Proxy
+# =============================================================================
+# Proxy health check to backend
+/health  https://movies.aperion.cc/health  200
+
+# =============================================================================
+# SPA Fallback - Serve index.html for all non-file routes
+# =============================================================================
+# Single Page Application (SPA) routing fallback
+# If a route doesn't match a physical file, serve index.html
+# This allows client-side routing to work (e.g., /profile, /recommendations)
+# The * pattern matches all routes, :splat captures the path
+#
+# Status 200 means serve index.html without changing the URL
+# This must be the LAST rule (most specific rules first)
+/*  /index.html  200
+
+# =============================================================================
+# Notes on Redirects/Proxies:
+# =============================================================================
+# - Rules are processed top-to-bottom (first match wins)
+# - :splat captures the remaining path (e.g., /api/movies → /api/movies)
+# - :placeholder captures a path segment (e.g., /user/:id)
+# - Status 200 = proxy/rewrite (browser URL stays the same)
+# - Status 301 = permanent redirect (browser URL changes)
+# - Status 302 = temporary redirect (browser URL changes)
+#
+# Example patterns:
+# - /api/*  → matches /api/anything
+# - /api/:id  → matches /api/123 but not /api/123/sub
+# - /*  → matches everything (catch-all)
+#
+# Proxy vs Redirect:
+# - Proxy (200): Backend request happens server-side, browser sees original URL
+# - Redirect (301/302): Browser makes new request to new URL
+# =============================================================================

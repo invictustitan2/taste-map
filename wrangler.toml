@@ -1,0 +1,28 @@
+# Cloudflare Pages Configuration for TasteMap Frontend
+# Documentation: https://developers.cloudflare.com/pages/
+
+# Project name - will appear in Cloudflare dashboard
+name = "tastemap-frontend"
+
+# Compatibility date for Workers runtime features
+compatibility_date = "2024-01-01"
+
+# Pages-specific configuration
+[pages]
+# Directory containing the built/static files to deploy
+# "." means the root directory (since this is a static site with no build step)
+build_output_dir = "."
+
+# Build command (optional) - leave empty for static sites with no build process
+# If you add a build step later (e.g., bundling, minification), set it here:
+# build_command = "npm run build"
+
+# Environment variables for build (if needed)
+# [pages.env.production]
+# API_BASE = "https://movies.aperion.cc"
+
+# Custom domain configuration (optional)
+# Add your custom domain in Cloudflare dashboard: Pages → Custom domains
+# [pages.domains]
+# production = "tastemap.yourdomain.com"
+# preview = "*.tastemap-preview.yourdomain.com"

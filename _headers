@@ -1,0 +1,101 @@
+# Cloudflare Pages HTTP Headers Configuration
+# Documentation: https://developers.cloudflare.com/pages/platform/headers/
+#
+# Format: Each section starts with a URL pattern, followed by header directives
+# Wildcards: * matches any characters, :placeholder for dynamic segments
+
+# =============================================================================
+# Default Headers for All Routes
+# =============================================================================
+/*
+  # CORS Headers - Allow cross-origin requests from any domain
+  # In production, you should restrict this to specific domains
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization, X-Import-Key
+  
+  # Security Headers - Protect against common web vulnerabilities
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+  
+  # Permissions Policy - Restrict browser features
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+
+# =============================================================================
+# HTML Files - No Cache (always fetch latest)
+# =============================================================================
+/*.html
+  # Prevent caching of HTML to ensure users always get latest version
+  Cache-Control: no-cache, no-store, must-revalidate
+  Pragma: no-cache
+  Expires: 0
+
+# Special handling for index.html
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+  Pragma: no-cache
+  Expires: 0
+
+# =============================================================================
+# JavaScript Files - Cache for 1 day
+# =============================================================================
+/*.js
+  # Cache JS files for 1 day (86400 seconds)
+  # Use versioned filenames or query strings to bust cache when updating
+  Cache-Control: public, max-age=86400, must-revalidate
+  Content-Type: application/javascript; charset=utf-8
+
+# =============================================================================
+# CSS Files - Cache for 1 day
+# =============================================================================
+/*.css
+  # Cache CSS files for 1 day
+  Cache-Control: public, max-age=86400, must-revalidate
+  Content-Type: text/css; charset=utf-8
+
+# =============================================================================
+# Images - Cache for 1 week
+# =============================================================================
+/*.jpg
+  Cache-Control: public, max-age=604800, immutable
+/*.jpeg
+  Cache-Control: public, max-age=604800, immutable
+/*.png
+  Cache-Control: public, max-age=604800, immutable
+/*.gif
+  Cache-Control: public, max-age=604800, immutable
+/*.webp
+  Cache-Control: public, max-age=604800, immutable
+/*.svg
+  Cache-Control: public, max-age=604800, immutable
+  Content-Type: image/svg+xml
+
+# =============================================================================
+# JSON Files - No cache (for data files)
+# =============================================================================
+/*.json
+  Cache-Control: no-cache, no-store, must-revalidate
+  Content-Type: application/json; charset=utf-8
+
+# =============================================================================
+# Font Files - Cache for 1 year (fonts rarely change)
+# =============================================================================
+/*.woff
+  Cache-Control: public, max-age=31536000, immutable
+/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+/*.ttf
+  Cache-Control: public, max-age=31536000, immutable
+/*.otf
+  Cache-Control: public, max-age=31536000, immutable
+
+# =============================================================================
+# Notes:
+# - max-age is in seconds
+# - must-revalidate: check with server if cache is stale
+# - immutable: resource will never change (use for versioned assets)
+# - public: can be cached by any cache (CDN, browser)
+# - no-store: never cache this resource
+# =============================================================================

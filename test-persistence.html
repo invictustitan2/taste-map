@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Data Persistence</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        .test-section {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #4ecdc4;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #45b8b0;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
+        .error { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
+        .info { background: rgba(78, 205, 196, 0.2); color: #4ecdc4; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Data Persistence Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: localStorage Availability</h2>
+        <button onclick="testLocalStorage()">Run Test</button>
+        <div id="test1-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: DataStore Save/Load</h2>
+        <button onclick="testDataStore()">Run Test</button>
+        <div id="test2-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Export/Import</h2>
+        <button onclick="testExportImport()">Run Test</button>
+        <div id="test3-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 4: Navigate to Main App</h2>
+        <a href="index.html"><button>Open TasteMap App</button></a>
+        <p style="font-size: 0.9em; color: #aaa;">Test: Rate movies, reload page, verify data persists</p>
+    </div>
+    
+    <script type="module">
+        import { UserDataStore } from './dataStore.js';
+        
+        window.testLocalStorage = function() {
+            const result = document.getElementById('test1-result');
+            try {
+                const test = '__test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                result.innerHTML = '<div class="status success">✓ localStorage is available</div>';
+            } catch (error) {
+                result.innerHTML = `<div class="status error">✗ localStorage is NOT available: ${error.message}</div>`;
+            }
+        };
+        
+        window.testDataStore = function() {
+            const result = document.getElementById('test2-result');
+            try {
+                // Clear any existing data
+                localStorage.removeItem('tastemap-user-data');
+                
+                // Create store and add rating
+                const store = new UserDataStore('test-user');
+                const addResult = store.addRating('inception', 5);
+                
+                if (!addResult.success) {
+                    throw new Error(addResult.error);
+                }
+                
+                // Create new store instance (simulates page reload)
+                const store2 = new UserDataStore('test-user');
+                const getRatings = store2.getRatings();
+                
+                if (getRatings.data.length === 1 && getRatings.data[0].score === 5) {
+                    result.innerHTML = '<div class="status success">✓ Data persists across store instances</div>';
+                } else {
+                    result.innerHTML = '<div class="status error">✗ Data did not persist correctly</div>';
+                }
+                
+                // Cleanup
+                store2.clearAllRatings();
+            } catch (error) {
+                result.innerHTML = `<div class="status error">✗ Test failed: ${error.message}</div>`;
+            }
+        };
+        
+        window.testExportImport = function() {
+            const result = document.getElementById('test3-result');
+            try {
+                // Setup test data
+                localStorage.removeItem('tastemap-user-data');
+                const store = new UserDataStore('test-user');
+                store.addRating('inception', 5);
+                store.addRating('interstellar', 4);
+                
+                // Export
+                const exported = store.exportData();
+                
+                // Clear and import
+                store.clearAllRatings();
+                exported.ratings.forEach(r => {
+                    store.addRating(r.movieId, r.score);
+                });
+                
+                const ratings = store.getRatings();
+                
+                if (ratings.data.length === 2) {
+                    result.innerHTML = '<div class="status success">✓ Export/Import works correctly</div>';
+                } else {
+                    result.innerHTML = '<div class="status error">✗ Export/Import failed</div>';
+                }
+                
+                // Cleanup
+                store.clearAllRatings();
+            } catch (error) {
+                result.innerHTML = `<div class="status error">✗ Test failed: ${error.message}</div>`;
+            }
+        };
+    </script>
+</body>
+</html>

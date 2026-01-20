@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TasteMap: Visualizing Your Film DNA</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Main Container -->
+    <div id="app-container">
+        <header>
+            <h1>🎬 TasteMap</h1>
+            <p class="subtitle">Visualizing Your Film DNA</p>
+            <div id="data-indicators" class="data-indicators">
+                <span id="ratings-counter" class="indicator">0 ratings saved</span>
+                <span id="last-update" class="indicator" style="display: none;"></span>
+            </div>
+        </header>
+
+        <!-- Movie Rating Section -->
+        <section id="rating-section" class="section">
+            <h2>Rate a Movie</h2>
+            
+            <!-- Movie Search/Select -->
+            <div class="form-group search-container">
+                <label for="movie-search">Search movies:</label>
+                <input 
+                    type="text" 
+                    id="movie-search" 
+                    placeholder="Type to search movies..."
+                    autocomplete="off"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded="false"
+                    aria-controls="search-dropdown"
+                    aria-label="Search for movies by title or year"
+                />
+                <!-- Dropdown will be created dynamically -->
+            </div>
+
+            <!-- Legacy select (hidden but kept for backwards compatibility) -->
+            <div class="form-group" style="display: none;">
+                <select id="movie-select" size="5" aria-label="Movie selection dropdown">
+                    <option value="">-- Loading movies --</option>
+                </select>
+            </div>
+
+            <!-- Selected Movie Info -->
+            <div id="selected-movie-info" class="movie-info" style="display: none;">
+                <div class="movie-header">
+                    <div id="selected-movie-thumbnail" class="movie-thumbnail"></div>
+                    <div class="movie-title-section">
+                        <h3 id="selected-movie-title"></h3>
+                        <p id="selected-movie-year" class="movie-year-badge"></p>
+                    </div>
+                </div>
+                
+                <!-- Movie Attributes Breakdown -->
+                <div class="movie-attributes-section">
+                    <h4>Attribute Breakdown</h4>
+                    <div id="selected-movie-attributes"></div>
+                </div>
+                
+                <!-- Rating Buttons -->
+                <div class="rating-buttons">
+                    <label>Your Rating:</label>
+                    <div class="stars">
+                        <button class="star-btn" data-rating="1" aria-label="Rate 1 star">⭐ 1</button>
+                        <button class="star-btn" data-rating="2" aria-label="Rate 2 stars">⭐ 2</button>
+                        <button class="star-btn" data-rating="3" aria-label="Rate 3 stars">⭐ 3</button>
+                        <button class="star-btn" data-rating="4" aria-label="Rate 4 stars">⭐ 4</button>
+                        <button class="star-btn" data-rating="5" aria-label="Rate 5 stars">⭐ 5</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Taste Profile Section -->
+        <section id="profile-section" class="section">
+            <h2>Your Taste Profile</h2>
+            
+            <!-- Radar Chart Canvas -->
+            <div class="chart-container">
+                <canvas id="taste-radar-chart" aria-label="Radar chart showing your taste profile"></canvas>
+            </div>
+            
+            <!-- Chart Legend -->
+            <div id="chart-legend" class="chart-legend">
+                <!-- Legend will be dynamically generated -->
+            </div>
+            
+            <!-- Attribute Contributors (hidden by default) -->
+            <div id="attribute-contributors" class="attribute-contributors" style="display: none;">
+                <!-- Contributors will be dynamically generated -->
+            </div>
+            
+            <!-- Profile Details -->
+            <div id="profile-display" class="profile-display">
+                <p class="empty-state">Rate some movies to build your taste profile!</p>
+            </div>
+            <div id="profile-stats" class="profile-stats"></div>
+        </section>
+
+        <!-- Recommendations Section -->
+        <section id="recommendations-section" class="section">
+            <h2>Recommended for You</h2>
+            <div id="loading-recommendations" class="loading-message" style="display: none;">
+                Calculating recommendations...
+            </div>
+            <div id="recommendations-display" class="recommendations-display">
+                <p class="empty-state">Your recommendations will appear here after you rate a few movies.</p>
+            </div>
+        </section>
+
+        <!-- Exploration Section -->
+        <section id="exploration-section" class="section">
+            <h2>🔍 Explore Your Taste</h2>
+            
+            <!-- Filter Controls -->
+            <div id="filter-controls" class="filter-controls">
+                <!-- Populated by explorationUI.js -->
+            </div>
+            
+            <!-- Taste Clusters -->
+            <div class="exploration-subsection">
+                <h3>Your Taste Clusters</h3>
+                <div id="cluster-display" class="cluster-display">
+                    <p class="empty-state">Rate movies to see your taste clusters</p>
+                </div>
+            </div>
+            
+            <!-- Taste Journey Timeline -->
+            <div class="exploration-subsection">
+                <div id="timeline-container" class="timeline-container">
+                    <p class="empty-state">Timeline will appear after rating movies</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Actions Section -->
+        <section id="actions-section" class="section">
+            <!-- IMDB Import Section -->
+            <div class="import-section">
+                <h3>📥 Import IMDB Ratings</h3>
+                <p class="help-text">
+                    Export your ratings from <a href="https://www.imdb.com/list/ratings" target="_blank" rel="noopener">IMDB → Your Ratings & Reviews</a> and upload the JSON file here.
+                </p>
+                
+                <div class="import-controls">
+                    <input 
+                        type="file" 
+                        id="import-file-input" 
+                        accept=".json,application/json" 
+                        style="display: none;" 
+                        aria-label="Select IMDB JSON file"
+                    />
+                    <button id="import-data-btn" class="btn btn-primary">
+                        📂 Choose IMDB JSON File
+                    </button>
+                    <button id="calculate-profile-btn" class="btn btn-secondary" style="display: none;">
+                        🧠 Calculate Taste Profile
+                    </button>
+                </div>
+                
+                <!-- Import Progress -->
+                <div id="import-progress" class="progress-container" style="display: none;">
+                    <div class="progress-bar">
+                        <div id="import-progress-bar" class="progress-fill"></div>
+                    </div>
+                    <p id="import-progress-text" class="progress-text">Importing movies...</p>
+                </div>
+                
+                <!-- Import Messages -->
+                <div id="import-messages" class="message-area"></div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="actions-grid">
+                <button id="export-data-btn" class="btn btn-secondary">💾 Export Ratings</button>
+                <button id="clear-ratings-btn" class="btn btn-danger">🗑️ Clear All Data</button>
+            </div>
+        </section>
+
+        <!-- Debug Info (optional) -->
+        <section id="debug-section" class="section debug-section" style="display: none;">
+            <h3>Debug Info</h3>
+            <pre id="debug-output"></pre>
+        </section>
+    </div>
+
+    <!-- Load UI Module -->
+    <script type="module" src="uiLayout.js"></script>
+    
+    <!-- Error Handling -->
+    <script>
+        window.addEventListener('error', function(event) {
+            console.error('App Error:', event.message, 'at', event.filename, ':', event.lineno);
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = '⚠️ An error occurred. Check the browser console for details.';
+            document.body.prepend(errorDiv);
+        });
+    </script>
+</body>
+</html>

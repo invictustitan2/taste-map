@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar Chart Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 40px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            font-family: sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #4ecdc4;
+        }
+        .chart-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        canvas {
+            width: 100%;
+            height: 400px;
+            border-radius: 8px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 20px;
+            background: #4ecdc4;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #44a3a0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Radar Chart Test</h1>
+        
+        <div class="chart-box">
+            <canvas id="radar-chart"></canvas>
+        </div>
+        
+        <div class="controls">
+            <button onclick="testProfile1()">Action Fan</button>
+            <button onclick="testProfile2()">Drama Lover</button>
+            <button onclick="testProfile3()">Comedy Enthusiast</button>
+            <button onclick="testProfile4()">Art House</button>
+            <button onclick="testProfile5()">Balanced</button>
+            <button onclick="testRandom()">Random</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { RadarChart } from './canvasRenderer.js';
+
+        const canvas = document.getElementById('radar-chart');
+        const attributes = ['Action', 'Drama', 'Comedy', 'Dark', 'Uplifting', 'Artistic'];
+        const radar = new RadarChart(canvas, attributes);
+
+        // Test profiles
+        window.testProfile1 = () => {
+            radar.updateData({
+                'Action': 0.95,
+                'Drama': 0.4,
+                'Comedy': 0.2,
+                'Dark': 0.7,
+                'Uplifting': 0.3,
+                'Artistic': 0.5
+            });
+        };
+
+        window.testProfile2 = () => {
+            radar.updateData({
+                'Action': 0.3,
+                'Drama': 0.95,
+                'Comedy': 0.2,
+                'Dark': 0.6,
+                'Uplifting': 0.8,
+                'Artistic': 0.7
+            });
+        };
+
+        window.testProfile3 = () => {
+            radar.updateData({
+                'Action': 0.4,
+                'Drama': 0.5,
+                'Comedy': 0.95,
+                'Dark': 0.2,
+                'Uplifting': 0.9,
+                'Artistic': 0.3
+            });
+        };
+
+        window.testProfile4 = () => {
+            radar.updateData({
+                'Action': 0.2,
+                'Drama': 0.7,
+                'Comedy': 0.3,
+                'Dark': 0.8,
+                'Uplifting': 0.4,
+                'Artistic': 0.95
+            });
+        };
+
+        window.testProfile5 = () => {
+            radar.updateData({
+                'Action': 0.6,
+                'Drama': 0.6,
+                'Comedy': 0.6,
+                'Dark': 0.5,
+                'Uplifting': 0.6,
+                'Artistic': 0.6
+            });
+        };
+
+        window.testRandom = () => {
+            radar.updateData({
+                'Action': Math.random(),
+                'Drama': Math.random(),
+                'Comedy': Math.random(),
+                'Dark': Math.random(),
+                'Uplifting': Math.random(),
+                'Artistic': Math.random()
+            });
+        };
+
+        // Start with a default profile
+        testProfile5();
+    </script>
+</body>
+</html>
