@@ -1,0 +1,28 @@
+# Cloudflare Pages HTTP Headers Configuration
+# https://developers.cloudflare.com/pages/platform/headers/
+
+# Caching Strategy:
+# - HTML: No cache (always fresh, check server on each load)
+# - JS/CSS: 1 day cache (static assets, versioned by content changes)
+# - Other files: 1 hour cache (images, data files)
+# - Security: Prevent MIME type sniffing
+
+# HTML - Always revalidate to ensure users get latest content
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+
+# JavaScript files - Long cache, assume content-based versioning
+/*.js
+  Cache-Control: public, max-age=86400
+  X-Content-Type-Options: nosniff
+
+# CSS files - Long cache, assume content-based versioning
+/*.css
+  Cache-Control: public, max-age=86400
+  X-Content-Type-Options: nosniff
+
+# All other files - Short cache (1 hour)
+/*
+  Cache-Control: public, max-age=3600
+  X-Content-Type-Options: nosniff

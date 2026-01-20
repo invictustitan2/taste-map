@@ -28,9 +28,9 @@ CREATE TABLE IF NOT EXISTS movies (
     -- Descriptive content
     overview TEXT,           -- TMDB plot summary
     
-    -- Structured metadata (stored as JSON strings)
-    genres TEXT,             -- JSON array: ["Drama", "Thriller"]
-    director TEXT,           -- Director name from TMDB credits
+    -- Structured metadata
+    genres TEXT,             -- Comma-separated from IMDB or TMDB: "Drama, Thriller"
+    director TEXT,           -- Director name from IMDB or TMDB credits
     cast TEXT,               -- JSON array: ["Actor 1", "Actor 2", ...] (top 5)
     plot_keywords TEXT,      -- JSON array: ["prison", "hope", "friendship"]
     
@@ -54,20 +54,24 @@ CREATE INDEX IF NOT EXISTS idx_movies_user_rating ON movies(user_rating)
 -- Index for year-based queries (era preferences)
 CREATE INDEX IF NOT EXISTS idx_movies_year ON movies(year);
 
+-- Index for genre searches (partial text matching)
+CREATE INDEX IF NOT EXISTS idx_movies_genres ON movies(genres);
+
 
 -- ============================================================================
 -- TASTE_PROFILE TABLE
 -- ============================================================================
 -- Stores calculated taste dimensions derived from user's rated movies
--- Used to personalize recommendations and explain viewing preferences
+-- Each row represents one dimension (genre, era, theme, director, or runtime_preference)
 CREATE TABLE IF NOT EXISTS taste_profile (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     
-    -- Dimension identifier (e.g., "prefers_indie", "era_preference_1990s")
-    dimension_name TEXT NOT NULL UNIQUE,
+    -- Dimension type: 'genre', 'era', 'theme', 'director', or 'runtime_preference'
+    dimension_name TEXT NOT NULL,
     
-    -- Normalized score (-1 to 1 or 0 to 1 depending on dimension)
-    dimension_value REAL NOT NULL,
+    -- Specific value for this dimension
+    -- For genre: "Drama", for era: "1990s", for theme: "redemption", etc.
+    dimension_value TEXT NOT NULL,
     
     -- Number of movies that contributed to this calculation
     sample_size INTEGER NOT NULL DEFAULT 0,
@@ -76,9 +80,17 @@ CREATE TABLE IF NOT EXISTS taste_profile (
     calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     -- Additional context (stored as JSON)
-    -- e.g., {"top_genres": ["Drama", "Sci-Fi"], "avg_rating": 8.2}
-    metadata TEXT
+    -- For genres/eras: {"score": 0.85}
+    -- For themes/directors: {"rank": 1}
+    -- For runtime_preference: {"confidence": 0.9}
+    metadata TEXT,
+    
+    -- Composite unique constraint on dimension type + value
+    UNIQUE(dimension_name, dimension_value)
 );
+
+-- Index for fast dimension queries
+CREATE INDEX IF NOT EXISTS idx_taste_profile_dimension ON taste_profile(dimension_name);
 
 
 -- ============================================================================
@@ -89,15 +101,17 @@ CREATE TABLE IF NOT EXISTS taste_profile (
 CREATE TABLE IF NOT EXISTS recommendations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     
-    -- List of recommended movie IDs from the movies table (stored as JSON array)
-    recommended_movie_ids TEXT NOT NULL,  -- JSON: [123, 456, 789]
-    
-    -- AI-generated explanation for these recommendations
-    reasoning TEXT NOT NULL,
-    
     -- Context/filters that produced this recommendation
-    -- e.g., "mood:uplifting genre:comedy decade:2000s"
-    context TEXT,
+    -- Format: "${mood}_${genres}_${era}"
+    -- e.g., "uplifting_Drama,Comedy_recent"
+    context TEXT NOT NULL,
+    
+    -- List of recommended movies with scores and reasoning (stored as JSON array)
+    -- [{"imdb_id": "tt1234567", "match_score": 0.85, "reasoning": "..."}]
+    recommended_movie_ids TEXT NOT NULL,
+    
+    -- Legacy field for reasoning (kept for backward compatibility)
+    reasoning TEXT,
     
     -- AI confidence score (0-1)
     confidence_score REAL,
@@ -107,8 +121,8 @@ CREATE TABLE IF NOT EXISTS recommendations (
     expires_at TIMESTAMP NOT NULL  -- Recommendations expire after 24h
 );
 
--- Index for finding valid cached recommendations
-CREATE INDEX IF NOT EXISTS idx_recommendations_created ON recommendations(created_at);
+-- Index for finding valid cached recommendations by context
+CREATE INDEX IF NOT EXISTS idx_recommendations_context ON recommendations(context, expires_at);
 
 -- Index for efficient cache cleanup (remove expired entries)
 CREATE INDEX IF NOT EXISTS idx_recommendations_expires ON recommendations(expires_at);
@@ -121,3 +135,7 @@ CREATE INDEX IF NOT EXISTS idx_recommendations_expires ON recommendations(expire
 --   1. Create database: wrangler d1 create tastemap_db
 --   2. Update wrangler.toml with database_id
 --   3. Apply schema: wrangler d1 execute tastemap_db --file=schema.sql --remote
+--
+-- To reset and reapply (CAUTION: deletes all data):
+--   wrangler d1 execute tastemap_db --command="DROP TABLE IF EXISTS movies; DROP TABLE IF EXISTS taste_profile; DROP TABLE IF EXISTS recommendations;" --remote
+--   wrangler d1 execute tastemap_db --file=schema.sql --remote

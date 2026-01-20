@@ -1,0 +1,27 @@
+# Cloudflare Workers configuration for Taste Map API
+# See: https://developers.cloudflare.com/workers/wrangler/configuration/
+
+# Worker identity and entry point
+name = "taste-map"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database binding for storing user ratings and taste profiles
+[[d1_databases]]
+binding = "DB"
+database_name = "tastemap_db"
+database_id = "ec40cc6f-a6b6-42e0-b692-ae427de05781"
+
+# Workers AI binding for AI-powered features
+[ai]
+binding = "AI"
+
+# Observability features (logs, analytics, traces)
+[observability]
+enabled = true
+
+# Secrets (set via CLI, not committed to version control):
+# - IMPORT_SECRET: Authentication token for data import operations
+# - TMDB_API_KEY: The Movie Database API key for film metadata
+# Set with: wrangler secret put <SECRET_NAME>

@@ -1,6 +1,16 @@
 /**
  * Taste Map API Worker
  * Cloudflare Worker for movie recommendation system with D1 and AI integration
+ * 
+ * Routes:
+ * - GET  /                        - API information and available endpoints
+ * - GET  /health                  - Health check
+ * - GET  /api/movies              - List all movies (paginated)
+ * - GET  /api/movies/:imdbId      - Get single movie by IMDB ID
+ * - POST /api/movies/import       - Import movies from IMDB JSON (with optional TMDB enrichment)
+ * - POST /api/taste-profile       - Calculate taste profile using Workers AI
+ * - GET  /api/taste-profile       - Retrieve stored taste profile
+ * - GET  /api/recommendations     - Generate AI-powered recommendations
  */
 
 import { processImdbImport } from './import.js';
@@ -56,6 +66,29 @@ export default {
 			const path = url.pathname;
 			const method = request.method;
 
+			// Root endpoint - API information
+			if (path === '/' && method === 'GET') {
+				return successResponse({
+					name: 'Taste Map API',
+					version: '1.0.0',
+					description: 'Movie recommendation system with AI-powered taste profiling',
+					endpoints: {
+						health: 'GET /health',
+						movies: {
+							list: 'GET /api/movies?page=1',
+							get: 'GET /api/movies/:imdbId',
+							import: 'POST /api/movies/import',
+						},
+						tasteProfile: {
+							calculate: 'POST /api/taste-profile',
+							get: 'GET /api/taste-profile',
+						},
+						recommendations: 'GET /api/recommendations?count=10&mood=uplifting&genre=Drama&era=recent',
+					},
+					documentation: 'https://github.com/yourusername/taste-map',
+				});
+			}
+
 			// Health check endpoint
 			if (path === '/health' && method === 'GET') {
 				return successResponse({
@@ -108,7 +141,7 @@ export default {
 				return successResponse(movie);
 			}
 
-			// Import movies from IMDB JSON
+			// Import movies from IMDB JSON with optional TMDB enrichment
 			if (path === '/api/movies/import' && method === 'POST') {
 				// Authenticate import request
 				const importKey = request.headers.get('X-Import-Key');
@@ -116,9 +149,9 @@ export default {
 					return errorResponse('Unauthorized: Invalid or missing import key', 401);
 				}
 
-				// Check for TMDB API key
+				// Check for TMDB API key (optional but recommended)
 				if (!env.TMDB_API_KEY) {
-					return errorResponse('Server misconfiguration: TMDB_API_KEY not set', 500);
+					console.warn('TMDB_API_KEY not set - importing without enrichment');
 				}
 
 				// Parse request body
@@ -134,6 +167,7 @@ export default {
 				}
 
 				// Process import (this may take a while for large imports)
+				// processImdbImport handles null/undefined TMDB key gracefully
 				const summary = await processImdbImport(imdbData, env.DB, env.TMDB_API_KEY);
 
 				return successResponse(summary, 201);
@@ -148,6 +182,7 @@ export default {
 				try {
 					const profile = await calculateTasteProfile(env.DB, env.AI);
 
+					// Handle insufficient data error
 					if (profile.error) {
 						return errorResponse(profile.error, 400, {
 							sample_size: profile.sample_size,
@@ -167,11 +202,12 @@ export default {
 				try {
 					const { results } = await env.DB.prepare('SELECT * FROM taste_profile').all();
 
+					// Check if profile exists
 					if (!results || results.length === 0) {
 						return errorResponse('No taste profile found. Calculate one first with POST /api/taste-profile', 404);
 					}
 
-					// Reconstruct profile from dimensions
+					// Reconstruct profile from database dimensions
 					const profile = {
 						genres: {},
 						eras: {},
@@ -213,21 +249,19 @@ export default {
 				}
 
 				try {
-					// Parse query parameters
+					// Parse and validate query parameters
 					const mood = url.searchParams.get('mood');
 					const genreFilter = url.searchParams.get('genre');
 					const eraFilter = url.searchParams.get('era');
 					const count = parseInt(url.searchParams.get('count') || '10');
 
-					// Validate count
+					// Validate count parameter
 					if (isNaN(count) || count < 1 || count > 50) {
 						return errorResponse('Count must be between 1 and 50', 400);
 					}
 
-					// Build options object
-					const options = {
-						count,
-					};
+					// Build options object for recommendation engine
+					const options = { count };
 
 					if (mood) options.mood = mood;
 					if (genreFilter) options.genre_filter = genreFilter.split(',').map((g) => g.trim());
@@ -238,9 +272,10 @@ export default {
 						options.era_filter = eraFilter;
 					}
 
-					// Generate recommendations
+					// Generate recommendations using AI
 					const result = await generateRecommendations(env.DB, env.AI, options);
 
+					// Handle errors from recommendation engine
 					if (result.error) {
 						return errorResponse(result.error, 400);
 					}

@@ -1,0 +1,8 @@
+# Cloudflare Pages Redirects Configuration
+# https://developers.cloudflare.com/pages/platform/redirects/
+
+# Proxy Pattern: Forward all API requests to the backend Worker
+# Status 200 = proxy (not redirect) - frontend stays on same domain
+# :splat captures everything after /api/ and appends to destination
+
+/api/*  https://movies.aperion.cc/api/:splat  200
