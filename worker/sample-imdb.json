@@ -1,0 +1,44 @@
+[
+  {
+    "Const": "tt0111161",
+    "Your Rating": "10",
+    "Date Rated": "2023-01-15",
+    "Title": "The Shawshank Redemption",
+    "Title Type": "movie",
+    "IMDb Rating": "9.3",
+    "Runtime (mins)": "142",
+    "Year": "1994",
+    "Genres": "Drama",
+    "Num Votes": "2500000",
+    "Release Date": "1994-09-23",
+    "Directors": "Frank Darabont"
+  },
+  {
+    "Const": "tt0068646",
+    "Your Rating": "10",
+    "Date Rated": "2023-01-20",
+    "Title": "The Godfather",
+    "Title Type": "movie",
+    "IMDb Rating": "9.2",
+    "Runtime (mins)": "175",
+    "Year": "1972",
+    "Genres": "Crime, Drama",
+    "Num Votes": "1800000",
+    "Release Date": "1972-03-24",
+    "Directors": "Francis Ford Coppola"
+  },
+  {
+    "Const": "tt0468569",
+    "Your Rating": "9",
+    "Date Rated": "2023-02-01",
+    "Title": "The Dark Knight",
+    "Title Type": "movie",
+    "IMDb Rating": "9.0",
+    "Runtime (mins)": "152",
+    "Year": "2008",
+    "Genres": "Action, Crime, Drama",
+    "Num Votes": "2700000",
+    "Release Date": "2008-07-18",
+    "Directors": "Christopher Nolan"
+  }
+]

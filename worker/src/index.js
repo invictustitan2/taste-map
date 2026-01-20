@@ -1,0 +1,263 @@
+/**
+ * Taste Map API Worker
+ * Cloudflare Worker for movie recommendation system with D1 and AI integration
+ */
+
+import { processImdbImport } from './import.js';
+import { calculateTasteProfile } from './tasteProfile.js';
+import { generateRecommendations } from './recommendations.js';
+
+// CORS headers for cross-origin requests
+function corsHeaders() {
+	return {
+		'Access-Control-Allow-Origin': '*', // TODO: Restrict to specific domain in production
+		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+		'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Import-Key',
+		'Content-Type': 'application/json',
+	};
+}
+
+// Standardized error response
+function errorResponse(message, status = 500, details = null) {
+	return new Response(
+		JSON.stringify({
+			error: message,
+			status,
+			details,
+			timestamp: new Date().toISOString(),
+		}),
+		{
+			status,
+			headers: corsHeaders(),
+		}
+	);
+}
+
+// Standardized success response
+function successResponse(data, status = 200) {
+	return new Response(JSON.stringify(data), {
+		status,
+		headers: corsHeaders(),
+	});
+}
+
+export default {
+	async fetch(request, env, ctx) {
+		// Handle CORS preflight requests
+		if (request.method === 'OPTIONS') {
+			return new Response(null, {
+				status: 204,
+				headers: corsHeaders(),
+			});
+		}
+
+		try {
+			const url = new URL(request.url);
+			const path = url.pathname;
+			const method = request.method;
+
+			// Health check endpoint
+			if (path === '/health' && method === 'GET') {
+				return successResponse({
+					status: 'ok',
+					version: '1.0.0',
+					timestamp: new Date().toISOString(),
+				});
+			}
+
+			// List all movies (paginated)
+			if (path === '/api/movies' && method === 'GET') {
+				const page = parseInt(url.searchParams.get('page') || '1');
+				const limit = 50;
+				const offset = (page - 1) * limit;
+
+				const movies = await env.DB.prepare(
+					'SELECT * FROM movies ORDER BY user_rating DESC NULLS LAST, year DESC LIMIT ? OFFSET ?'
+				)
+					.bind(limit, offset)
+					.all();
+
+				// Get total count for pagination
+				const { count } = await env.DB.prepare('SELECT COUNT(*) as count FROM movies').first();
+
+				return successResponse({
+					movies: movies.results,
+					pagination: {
+						page,
+						limit,
+						total: count,
+						totalPages: Math.ceil(count / limit),
+					},
+				});
+			}
+
+			// Get single movie by IMDB ID
+			if (path.startsWith('/api/movies/') && method === 'GET') {
+				const imdbId = path.split('/')[3];
+
+				if (!imdbId || !imdbId.startsWith('tt')) {
+					return errorResponse('Invalid IMDB ID format', 400);
+				}
+
+				const movie = await env.DB.prepare('SELECT * FROM movies WHERE imdb_id = ?').bind(imdbId).first();
+
+				if (!movie) {
+					return errorResponse('Movie not found', 404);
+				}
+
+				return successResponse(movie);
+			}
+
+			// Import movies from IMDB JSON
+			if (path === '/api/movies/import' && method === 'POST') {
+				// Authenticate import request
+				const importKey = request.headers.get('X-Import-Key');
+				if (!importKey || importKey !== env.IMPORT_SECRET) {
+					return errorResponse('Unauthorized: Invalid or missing import key', 401);
+				}
+
+				// Check for TMDB API key
+				if (!env.TMDB_API_KEY) {
+					return errorResponse('Server misconfiguration: TMDB_API_KEY not set', 500);
+				}
+
+				// Parse request body
+				let imdbData;
+				try {
+					imdbData = await request.json();
+				} catch (e) {
+					return errorResponse('Invalid JSON in request body', 400);
+				}
+
+				if (!Array.isArray(imdbData)) {
+					return errorResponse('Request body must be an array of IMDB movie objects', 400);
+				}
+
+				// Process import (this may take a while for large imports)
+				const summary = await processImdbImport(imdbData, env.DB, env.TMDB_API_KEY);
+
+				return successResponse(summary, 201);
+			}
+
+			// POST /api/taste-profile - Calculate and store user's taste profile using Workers AI
+			if (path === '/api/taste-profile' && method === 'POST') {
+				if (!env.AI) {
+					return errorResponse('Workers AI binding not configured', 500);
+				}
+
+				try {
+					const profile = await calculateTasteProfile(env.DB, env.AI);
+
+					if (profile.error) {
+						return errorResponse(profile.error, 400, {
+							sample_size: profile.sample_size,
+							required: profile.required,
+						});
+					}
+
+					return successResponse(profile, 200);
+				} catch (error) {
+					console.error('Taste profile calculation error:', error);
+					return errorResponse('Failed to calculate taste profile', 500, error.message);
+				}
+			}
+
+			// GET /api/taste-profile - Retrieve stored taste profile
+			if (path === '/api/taste-profile' && method === 'GET') {
+				try {
+					const { results } = await env.DB.prepare('SELECT * FROM taste_profile').all();
+
+					if (!results || results.length === 0) {
+						return errorResponse('No taste profile found. Calculate one first with POST /api/taste-profile', 404);
+					}
+
+					// Reconstruct profile from dimensions
+					const profile = {
+						genres: {},
+						eras: {},
+						themes: [],
+						runtime_preference: 'medium',
+						directors: [],
+						sample_size: 0,
+						confidence: 0,
+					};
+
+					results.forEach((row) => {
+						if (row.dimension_name === 'genres' && row.metadata) {
+							profile.genres = JSON.parse(row.metadata);
+							profile.sample_size = row.sample_size;
+						} else if (row.dimension_name === 'eras' && row.metadata) {
+							profile.eras = JSON.parse(row.metadata);
+						} else if (row.dimension_name === 'themes' && row.metadata) {
+							profile.themes = JSON.parse(row.metadata);
+						} else if (row.dimension_name === 'runtime_preference' && row.metadata) {
+							const meta = JSON.parse(row.metadata);
+							profile.runtime_preference = meta.preference;
+							profile.confidence = row.dimension_value;
+						} else if (row.dimension_name === 'directors' && row.metadata) {
+							profile.directors = JSON.parse(row.metadata);
+						}
+					});
+
+					return successResponse(profile, 200);
+				} catch (error) {
+					console.error('Error retrieving taste profile:', error);
+					return errorResponse('Failed to retrieve taste profile', 500, error.message);
+				}
+			}
+
+			// GET /api/recommendations - Generate AI-powered movie recommendations
+			if (path === '/api/recommendations' && method === 'GET') {
+				if (!env.AI) {
+					return errorResponse('Workers AI binding not configured', 500);
+				}
+
+				try {
+					// Parse query parameters
+					const mood = url.searchParams.get('mood');
+					const genreFilter = url.searchParams.get('genre');
+					const eraFilter = url.searchParams.get('era');
+					const count = parseInt(url.searchParams.get('count') || '10');
+
+					// Validate count
+					if (isNaN(count) || count < 1 || count > 50) {
+						return errorResponse('Count must be between 1 and 50', 400);
+					}
+
+					// Build options object
+					const options = {
+						count,
+					};
+
+					if (mood) options.mood = mood;
+					if (genreFilter) options.genre_filter = genreFilter.split(',').map((g) => g.trim());
+					if (eraFilter) {
+						if (!['classic', 'modern', 'recent'].includes(eraFilter)) {
+							return errorResponse('Era filter must be one of: classic, modern, recent', 400);
+						}
+						options.era_filter = eraFilter;
+					}
+
+					// Generate recommendations
+					const result = await generateRecommendations(env.DB, env.AI, options);
+
+					if (result.error) {
+						return errorResponse(result.error, 400);
+					}
+
+					return successResponse(result, 200);
+				} catch (error) {
+					console.error('Recommendations error:', error);
+					return errorResponse('Failed to generate recommendations', 500, error.message);
+				}
+			}
+
+			// Route not found
+			return errorResponse('Route not found', 404);
+		} catch (error) {
+			// Global error handler
+			console.error('Worker error:', error);
+			return errorResponse('Internal server error', 500, error.message);
+		}
+	},
+};
