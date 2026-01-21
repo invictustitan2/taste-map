@@ -7,6 +7,20 @@ main = "src/index.js"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Keep workers.dev endpoint active as fallback
+workers_dev = true
+
+# Routes configuration
+# Map specific paths to this Worker, allowing the rest (Frontend) to be served by Pages
+# Note: These intercept traffic before it hits Pages
+[[routes]]
+pattern = "movies.aperion.cc/api/*"
+zone_name = "aperion.cc"
+
+[[routes]]
+pattern = "movies.aperion.cc/health"
+zone_name = "aperion.cc"
+
 # D1 Database binding for storing user ratings and taste profiles
 [[d1_databases]]
 binding = "DB"

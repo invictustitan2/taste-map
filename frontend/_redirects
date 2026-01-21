@@ -5,4 +5,7 @@
 # Status 200 = proxy (not redirect) - frontend stays on same domain
 # :splat captures everything after /api/ and appends to destination
 
-/api/*  https://movies.aperion.cc/api/:splat  200
+
+
+# SPA Fallback
+# SPA Fallback removed to prevent MIME type errors on missing assets

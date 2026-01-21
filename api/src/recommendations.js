@@ -143,7 +143,11 @@ async function checkCache(db, cacheKey) {
   const reasoning = result.reasoning ? JSON.parse(result.reasoning) : {};
   
   // Fetch full movie data
-  const movieIds = recommendations.map(r => r.imdb_id);
+  const movieIds = recommendations.map(r => r.imdb_id).filter(Boolean);
+  if (movieIds.length === 0) {
+    return { recommendations: [], confidence_score: result.confidence_score || 0 };
+  }
+  
   const placeholders = movieIds.map(() => '?').join(',');
   const { results: movies } = await db.prepare(`
     SELECT imdb_id, title, year, genres, director, overview,
@@ -294,6 +298,9 @@ Respond ONLY with valid JSON (no markdown, no preamble):
     responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     
     // Parse JSON response
+    if (!responseText) {
+      throw new Error('Empty response from AI');
+    }
     const recommendations = JSON.parse(responseText);
     
     // Validate structure
@@ -448,7 +455,16 @@ export async function generateRecommendations(db, ai, options = {}) {
     }
     
     // Fetch full movie details for recommended IDs
-    const movieIds = aiRecommendations.map(r => r.imdb_id);
+    const movieIds = aiRecommendations.map(r => r.imdb_id).filter(Boolean);
+    if (movieIds.length === 0) {
+      return {
+        recommendations: [],
+        profile_confidence: profile.confidence,
+        cached: false,
+        filters_applied: options
+      };
+    }
+    
     const placeholders = movieIds.map(() => '?').join(',');
     const { results: movies } = await db.prepare(`
       SELECT imdb_id, title, year, genres, director, overview,

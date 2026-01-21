@@ -14,8 +14,8 @@
  */
 
 import { processImdbImport } from './import.js';
-import { calculateTasteProfile } from './tasteProfile.js';
 import { generateRecommendations } from './recommendations.js';
+import { calculateTasteProfile } from './tasteProfile.js';
 
 // CORS headers for cross-origin requests
 function corsHeaders() {
@@ -124,6 +124,25 @@ export default {
 				});
 			}
 
+			// Search movies
+			if (path === '/api/movies/search' && method === 'GET') {
+				const query = url.searchParams.get('q');
+				if (!query) {
+					return errorResponse('Query parameter "q" is required', 400);
+				}
+
+				const movies = await env.DB.prepare(
+					'SELECT * FROM movies WHERE title LIKE ? OR year LIKE ? ORDER BY user_rating DESC LIMIT 20'
+				)
+					.bind(`%${query}%`, `%${query}%`)
+					.all();
+
+				return successResponse({
+					movies: movies.results,
+					count: movies.results.length
+				});
+			}
+
 			// Get single movie by IMDB ID
 			if (path.startsWith('/api/movies/') && method === 'GET') {
 				const imdbId = path.split('/')[3];
@@ -175,10 +194,6 @@ export default {
 
 			// POST /api/taste-profile - Calculate and store user's taste profile using Workers AI
 			if (path === '/api/taste-profile' && method === 'POST') {
-				if (!env.AI) {
-					return errorResponse('Workers AI binding not configured', 500);
-				}
-
 				try {
 					const profile = await calculateTasteProfile(env.DB, env.AI);
 
@@ -219,19 +234,19 @@ export default {
 					};
 
 					results.forEach((row) => {
-						if (row.dimension_name === 'genres' && row.metadata) {
-							profile.genres = JSON.parse(row.metadata);
+						if (row.dimension_name === 'genre' && row.metadata) {
+							profile.genres[row.dimension_value] = JSON.parse(row.metadata).score;
 							profile.sample_size = row.sample_size;
-						} else if (row.dimension_name === 'eras' && row.metadata) {
-							profile.eras = JSON.parse(row.metadata);
-						} else if (row.dimension_name === 'themes' && row.metadata) {
-							profile.themes = JSON.parse(row.metadata);
+						} else if (row.dimension_name === 'era' && row.metadata) {
+							profile.eras[row.dimension_value] = JSON.parse(row.metadata).score;
+						} else if (row.dimension_name === 'theme') {
+							profile.themes.push(row.dimension_value);
 						} else if (row.dimension_name === 'runtime_preference' && row.metadata) {
 							const meta = JSON.parse(row.metadata);
-							profile.runtime_preference = meta.preference;
-							profile.confidence = row.dimension_value;
-						} else if (row.dimension_name === 'directors' && row.metadata) {
-							profile.directors = JSON.parse(row.metadata);
+							profile.runtime_preference = row.dimension_value;
+							profile.confidence = meta.confidence;
+						} else if (row.dimension_name === 'director') {
+							profile.directors.push(row.dimension_value);
 						}
 					});
 
@@ -244,10 +259,6 @@ export default {
 
 			// GET /api/recommendations - Generate AI-powered movie recommendations
 			if (path === '/api/recommendations' && method === 'GET') {
-				if (!env.AI) {
-					return errorResponse('Workers AI binding not configured', 500);
-				}
-
 				try {
 					// Parse and validate query parameters
 					const mood = url.searchParams.get('mood');
@@ -291,7 +302,8 @@ export default {
 			return errorResponse('Route not found', 404);
 		} catch (error) {
 			// Global error handler
-			console.error('Worker error:', error);
+			console.error('Worker error:', error.message);
+			console.error('Stack:', error.stack);
 			return errorResponse('Internal server error', 500, error.message);
 		}
 	},

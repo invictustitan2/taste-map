@@ -4,11 +4,12 @@
  * Connects user interactions to data store and taste profile engine
  */
 
-import { SAMPLE_MOVIES, MOVIE_MAP, FILM_ATTRIBUTES } from './filmAttributes.js';
-import { UserDataStore } from './dataStore.js';
-import { calculateTasteProfile, findSimilarMovies, getDominantAttributes } from './tasteProfileEngine.js';
+import { TasteMapAPI } from './apiClient.js';
 import { RadarChart } from './canvasRenderer.js';
+import { UserDataStore } from './dataStore.js';
 import * as ExplorationUI from './explorationUI.js';
+import { FILM_ATTRIBUTES, MOVIE_MAP, SAMPLE_MOVIES } from './filmAttributes.js';
+import { calculateTasteProfile, findSimilarMovies, getDominantAttributes } from './tasteProfileEngine.js';
 
 // ============================================================================
 // Module State
@@ -87,6 +88,11 @@ function init() {
   
   // Check localStorage availability
   checkLocalStorageAvailability();
+  
+  // Check API Health
+  TasteMapAPI.checkHealth()
+    .then(health => console.log('[UI] API Health:', health))
+    .catch(err => console.error('[UI] API Health Check Failed:', err));
   
   // Cache DOM references
   cacheDOMReferences();
